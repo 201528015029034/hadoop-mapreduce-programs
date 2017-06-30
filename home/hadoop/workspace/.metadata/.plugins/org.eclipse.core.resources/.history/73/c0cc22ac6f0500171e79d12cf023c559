@@ -1,0 +1,9 @@
+package api;
+
+public class TestArraysCopyOf {
+	
+	public static void main(String[] args) {
+		char[] buf = "hello world".toCharArray();
+	}
+
+}

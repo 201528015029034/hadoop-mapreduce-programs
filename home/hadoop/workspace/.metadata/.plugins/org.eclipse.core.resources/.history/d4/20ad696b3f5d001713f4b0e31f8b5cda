@@ -1,0 +1,78 @@
+package org.apache.hadoop.examples;
+
+import java.io.IOException;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class WordCount {
+	
+	public static class MyMapper 
+		extends Mapper<LongWritable, Text, Text, IntWritable> {
+
+        @Override
+        protected void map(LongWritable key, Text value, 
+        		Context context) throws IOException, InterruptedException {
+
+            Text outputKey = new Text();
+            String line = value.toString();
+            StringTokenizer tokenizer = new StringTokenizer(line);
+            while (tokenizer.hasMoreTokens()) {
+                String word = tokenizer.nextToken();
+                outputKey.set(word);
+                context.write(outputKey, new IntWritable(1));
+            }
+//            context.write(value, new IntWritable(1));
+        }
+    }
+
+    public static class MyReducer 
+    	extends Reducer<Text, IntWritable, Text, IntWritable> {
+    	
+        @Override
+        protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+            int sum = 0;
+            for(IntWritable value : values) {
+                sum += value.get();
+            }
+            context.write(key, new IntWritable(sum));
+        }
+    }
+
+    /**
+     * 
+     * @param args /home/hadoop/workspace/data/wordcount/input /home/hadoop/workspace/data/wordcount/output
+     * @throws Exception
+     */
+    public static void main(String[] args) throws Exception {
+
+
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf, "WordCount");
+        job.setJarByClass(WordCount.class);
+
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(MyMapper.class);
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(IntWritable.class);
+
+        job.setReducerClass(MyReducer.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        Boolean finish = job.waitForCompletion(true);
+        System.exit(finish == true ? 0 : 1);
+    }
+
+}

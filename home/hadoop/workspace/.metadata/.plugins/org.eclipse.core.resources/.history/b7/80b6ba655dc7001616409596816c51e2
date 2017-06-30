@@ -1,0 +1,86 @@
+package Counter;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
+
+import org.apache.commons.lang.ObjectUtils.Null;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+
+public class CountNumUsersByState {
+	
+	private static class CountNumUsersByStateMapper 
+		extends Mapper<LongWritable, Text, NullWritable, NullWritable>{
+		public static final String STATE_COUNTER_GROUP = "State";
+		public static final String UNKNOWN_COUNTER = "Unknown";
+		public static final String NULL_OR_EMPTY_COUNTER = "Null or Empty";
+		
+		private String[] statesArray = new String[] {"AL", "AK"};
+		private HashSet<String> states = new HashSet(Arrays.asList(statesArray));
+		@Override
+		protected void map(LongWritable key, Text value, Context context)
+						throws IOException, InterruptedException {
+			String line = value.toString();
+			String[] tokens = line.split("\t");
+			String location = tokens[1];
+System.out.println(location);
+			if(location != null && !location.isEmpty()) {
+				boolean unknown = true;
+				if(states.contains(location)) {
+					context.getCounter(STATE_COUNTER_GROUP, location).increment(1);
+					unknown = false;
+				}
+				if(unknown) {
+					context.getCounter(STATE_COUNTER_GROUP, UNKNOWN_COUNTER).increment(1);
+				}
+			}else {
+				context.getCounter(STATE_COUNTER_GROUP, NULL_OR_EMPTY_COUNTER).increment(1);
+			}
+		}
+	}
+	
+	public static void main(String[] args) throws Exception{
+		Configuration conf = new Configuration();
+		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+		if(otherArgs.length != 2) {
+			System.out.println("args length must be 2");
+			System.exit(1);
+		}
+		Job job = Job.getInstance(conf, "CountNumUsersByState");
+		job.setJarByClass(CountNumUsersByState.class);
+		
+		job.setMapperClass(CountNumUsersByStateMapper.class);
+		job.setMapOutputKeyClass(NullWritable.class);
+		job.setMapOutputValueClass(NullWritable.class);
+		
+		FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+		Path outputDir = new Path(otherArgs[1]);
+		FileSystem fs = FileSystem.get(conf);
+		if(fs.exists(outputDir)) {
+			fs.delete(outputDir, true);
+		}
+		FileOutputFormat.setOutputPath(job, outputDir);
+		int code = job.waitForCompletion(true) ? 0 : 1;
+		if(code == 0) {
+			for(Counter counter : job.getCounters().getGroup(
+					CountNumUsersByStateMapper.STATE_COUNTER_GROUP)) {
+				System.out.println(counter.getDisplayName() + "\t" + counter.getValue());
+			}
+		}
+		
+		fs.delete(outputDir, true);
+		System.exit(code);
+	}
+
+}

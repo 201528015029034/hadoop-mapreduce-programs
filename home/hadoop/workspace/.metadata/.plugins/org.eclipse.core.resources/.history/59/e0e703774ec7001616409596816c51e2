@@ -1,0 +1,11 @@
+package Counter;
+
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class CountNumUsersByState {
+	
+	private static class CountNumUsersByStateMapper extends Mapper<>{
+		
+	}
+
+}

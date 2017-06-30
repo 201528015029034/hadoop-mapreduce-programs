@@ -1,0 +1,13 @@
+package api;
+
+import java.util.Arrays;
+
+public class TestArraysCopyOf {
+	
+	public static void main(String[] args) {
+		char[] buf = "hello world".toCharArray();
+		buf = Arrays.copyOf(buf, buf.length+10);
+		System.out.println(new String(buf));
+	}
+
+}

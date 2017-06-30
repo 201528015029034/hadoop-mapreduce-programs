@@ -1,0 +1,110 @@
+package org.apache.hadoop.examples;
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+/**
+ * 根据日志数据，统计各个url请求的次数
+ * @author hadoop
+ */
+public class LogAnalysis {
+	
+	public static class LogAnalysisMapper 
+		extends Mapper<LongWritable, Text, Text, IntWritable> {
+		
+		IntWritable num = new IntWritable(1);
+		@Override
+		public void map(LongWritable key, Text value, Context context) 
+				throws IOException, InterruptedException{
+			String line = value.toString().trim();
+			String tmp = handlerLog(line);
+			if(tmp.length() > 0) {
+				context.write(new Text(tmp), num);
+			}
+		}
+		
+		//0.0.0.0 "GET HTTP/1.0"
+		private String handlerLog(String line) {
+			String result = "";
+			try{
+				if(line.length() > 20) {
+					if(line.indexOf("GET") > 0) {
+						result = line.substring(line.indexOf("GET"), 
+								line.indexOf("HTTP/1.0")).trim();
+					}else if(line.indexOf("POST") > 0) {
+						result = line.substring(line.indexOf("POST"), 
+								line.indexOf("HTTP/1.0")).trim();
+					}
+				}
+			}catch(Exception e){
+				System.out.println(line);
+			}
+			
+			return result;
+		}
+	}
+	
+	public static class LogAnalysisReducer 
+		extends Reducer<Text, IntWritable, Text, IntWritable> {
+		
+		@Override
+		public void reduce(Text key, Iterable<IntWritable> values, Context context) 
+				throws IOException, InterruptedException {
+			int sum = 0;
+			for(IntWritable val : values) {
+				sum += val.get();
+			}
+			context.write(key, new IntWritable(sum));
+		}
+	}
+	
+	public static void main(String[] args) throws Exception {
+		if(args.length != 2) {
+			System.err.println("args length must be 2");
+			System.exit(-1);
+		}
+		Configuration config = new Configuration();
+		Job job = Job.getInstance(config, "loganalysis");
+		job.setJarByClass(LogAnalysis.class);
+		
+		job.setMapperClass(LogAnalysisMapper.class);
+		job.setMapOutputKeyClass(Text.class);
+		job.setOutputValueClass(IntWritable.class);
+		
+		job.setReducerClass(LogAnalysisReducer.class);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(IntWritable.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		Path outputDir = new Path(args[1]);
+		FileSystem fs = FileSystem.get(config);
+		if(fs.exists(outputDir)) {
+			fs.delete(outputDir, true);
+		}
+		FileOutputFormat.setOutputPath(job, outputDir);
+		
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

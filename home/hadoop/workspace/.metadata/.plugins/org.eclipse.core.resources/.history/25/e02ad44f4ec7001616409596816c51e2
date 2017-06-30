@@ -1,0 +1,9 @@
+package Counter;
+
+public class CountNumUsersByState {
+	
+	private static class CountNumUsersByStateMapper extends Mapper<>{
+		
+	}
+
+}

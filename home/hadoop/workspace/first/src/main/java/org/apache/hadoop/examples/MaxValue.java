@@ -1,0 +1,90 @@
+package org.apache.hadoop.examples;
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+
+/**
+ * 求输入数据的最大值和最小值
+ * @author hadoop
+ */
+public class MaxValue {
+	
+	public static class MaxValueMapper 
+		extends Mapper<LongWritable, Text, Text, IntWritable> {
+		
+		Text keyText = new Text("key");
+		@Override
+		public void map(LongWritable key, Text value, Context context) 
+				throws IOException, InterruptedException {
+			String line = value.toString().trim();
+			if(line.length() > 0) {
+				context.write(keyText, new IntWritable(Integer.parseInt(line)));
+			}
+		}
+	}
+	
+	public static class MaxValueReducer 
+		extends Reducer<Text, IntWritable, Text, IntWritable> {
+		
+		Text maxKey = new Text("max");
+		Text minKey = new Text("min");
+		@Override
+		public void reduce(Text key, Iterable<IntWritable> values, Context context) 
+				throws IOException, InterruptedException {
+			int max = Integer.MIN_VALUE;
+			int min = Integer.MAX_VALUE;
+			for(IntWritable val : values) {
+				if(val.get() > max) {
+					max = val.get();
+				}
+				if(val.get() < min) {
+					min = val.get();
+				}
+			}
+			context.write(maxKey, new IntWritable(max));
+			context.write(minKey, new IntWritable(min));
+		}
+	}
+	
+	public static void main(String[] originalArgs) throws Exception {
+		Configuration conf = new Configuration();
+		String[] args = new GenericOptionsParser(conf, originalArgs).getRemainingArgs();
+		if(args.length != 2) {
+			System.err.println("args length must be 2");
+			System.exit(1);
+		}
+		Job job = Job.getInstance(conf, "maxvalue");
+		job.setJarByClass(MaxValue.class);
+		
+		job.setMapperClass(MaxValueMapper.class);
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(IntWritable.class);
+		
+		job.setReducerClass(MaxValueReducer.class);
+//		job.setNumReduceTasks(2);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(IntWritable.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileSystem fs = FileSystem.get(conf);
+		Path outputDir = new Path(args[1]);
+		if(fs.exists(outputDir)) {
+			fs.delete(outputDir, true);
+		}
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+}

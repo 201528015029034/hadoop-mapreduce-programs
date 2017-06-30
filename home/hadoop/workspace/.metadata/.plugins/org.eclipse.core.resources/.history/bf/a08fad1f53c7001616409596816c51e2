@@ -1,0 +1,16 @@
+package Counter;
+
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class CountNumUsersByState {
+	
+	private static class CountNumUsersByStateMapper 
+		extends Mapper<LongWritable, Text, NullWritable, NullWritable>{
+		public static final String STATE_COUNTER_GROUP = "State";
+		public static final String UNKNOWN_COUNTER = "Unknown";
+	}
+
+}

@@ -1,0 +1,22 @@
+package Counter;
+
+import java.util.HashSet;
+
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class CountNumUsersByState {
+	
+	private static class CountNumUsersByStateMapper 
+		extends Mapper<LongWritable, Text, NullWritable, NullWritable>{
+		public static final String STATE_COUNTER_GROUP = "State";
+		public static final String UNKNOWN_COUNTER = "Unknown";
+		public static final String NULL_OR_EMPTY_COUNTER = "Null or Empty";
+		
+		private String[] statesArray = new String[] {"AL", "AK"};
+		private HashSet<String> states = new HashSet();
+	}
+
+}
